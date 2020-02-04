@@ -1,10 +1,10 @@
 /*
  * onScan.js - scan-events for hardware barcodes scanners in javascript
  */
-var onScan = {		
+export let onScan = {
 	attachTo: function(oDomElement, oOptions) {
 
-		if(oDomElement.scannerDetectionData != undefined){
+		if(oDomElement.scannerDetectionData !== undefined){
 			throw new Error("onScan.js is already initialized for DOM element " + oDomElement);
 		}
 
@@ -132,8 +132,8 @@ var onScan = {
 	},
 	
 	_isFocusOnIgnoredElement: function(oDomElement){
-		
-		ignoreSelectors = oDomElement['scannerDetectionData'].options.ignoreIfFocusOn;
+
+	var ignoreSelectors = oDomElement['scannerDetectionData'].options.ignoreIfFocusOn;
 
         if(!ignoreSelectors){
 			return false;
@@ -164,19 +164,21 @@ var onScan = {
 		var sScanCode = oScannerData.vars.stringWriting;
 		var iFirstCharTime = oScannerData.vars.firstCharTime;
 		var iLastCharTime = oScannerData.vars.lastCharTime;
-	
+		var oScanError = {};
+        var oEvent;
+
 		switch(true){
 			
 			// detect codes that are too short
 			case (sScanCode.length<oOptions.minLength):
-				var oScanError = {
+				oScanError = {
 					message: "Receieved code is shorter then minimal length"
 				};
 				break;
 				
 			// detect codes that were entered too slow	
 			case ((iLastCharTime - iFirstCharTime) > (sScanCode.length * oOptions.avgTimeByChar)):
-				var oScanError = {
+				oScanError = {
 					message: "Receieved code was not entered in time"
 				};				
 				break;
@@ -184,7 +186,7 @@ var onScan = {
 			// if a code was not filtered out earlier it is valid	
 			default:
 				oOptions.onScan.call(oDomElement, sScanCode, iSingleScanQty);
-				var oEvent = new CustomEvent(
+				oEvent = new CustomEvent(
 					'scan',
 					{	
 						detail: { 
@@ -243,21 +245,18 @@ var onScan = {
 		return iKeyCode;
 	},
 
+	_handleKeyDown: function (e) {
+        // overwrite the which value of the event with keycode for cross platform compatibility
+        var iKeyCode = onScan._getNormalizedKeyNum(e);
+        var oOptions = this['scannerDetectionData'].options;
+        var oVars = this['scannerDetectionData'].vars;
 
+        oOptions.onKeyDetect.call(this, iKeyCode, e);
 
-	_handleKeyDown: function(e){
-		// overwrite the which value of the event with keycode for cross platform compatibility
-		e.which = onScan._getNormalizedKeyNum(e);
-		var iKeyCode = e.which;
-		var oOptions = this['scannerDetectionData'].options;
-		var oVars = this['scannerDetectionData'].vars;
-		
-		oOptions.onKeyDetect.call(this, e.which, e);		
-		
-		if (onScan._isFocusOnIgnoredElement(this)){
-			return;
-		}
-					
+        if (onScan._isFocusOnIgnoredElement(this)) {
+            return;
+        }
+
         // If it's just the button of the scanner, ignore it and wait for the real input
 	    if(oOptions.scanButtonKeyCode !== false && iKeyCode==oOptions.scanButtonKeyCode) {
 			
